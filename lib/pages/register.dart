@@ -21,9 +21,15 @@ class Register extends StatefulWidget {
   State<Register> createState() => _RegisterState();
 }
 
+
+
 class _RegisterState extends State<Register> {
+
+ bool _obscurePassword = true;
+
   final username = TextEditingController();
   final email = TextEditingController();
+  final password = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
@@ -92,21 +98,31 @@ class _RegisterState extends State<Register> {
                       ),
                     ),
                   ),
-                  // EMAIL
+                  // Password
                   Container(
                     padding: const EdgeInsets.all(20),
                     child: TextField(
-                      controller: email,
-                      keyboardType: TextInputType.emailAddress,
+                      controller: password,
+                      obscureText: _obscurePassword,
+                      keyboardType: TextInputType.visiblePassword,
                       decoration: InputDecoration(
-                        labelText: "Email",
-                        hintText: "Masukan Email",
+                        labelText: "Password",
+                        hintText: "Password here",
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(
-                            color: Colors.grey,
-                            width: 2,
-                          ),
+                          
+                        ),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscurePassword 
+                            ? Icons.visibility_off 
+                            : Icons.visibility
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                _obscurePassword = !_obscurePassword;
+                              });
+                            },
                         ),
                       ),
                     ),
