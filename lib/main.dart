@@ -1,11 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:project_rpl5/pages/homePage.dart';
-import 'package:project_rpl5/pages/login.dart';
-import 'package:project_rpl5/pages/register.dart';
+import 'package:project_rpl5/navigation/my_blog.dart';
 
-
-void main () {
-  runApp(MyApp());
+void main() {
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -14,17 +11,8 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      routes: {
-        "/login": (context) => LoginPage(),
-        "/register": (context) => RegisterPage(),
-        "/home": (context) => HomePage(),
-        
-
-      },
-      initialRoute: "/register",
-      theme: ThemeData(
-        fontFamily: "Dancing"
-      ),
+      debugShowCheckedModeBanner: false,
+      home: const MyBlogPage(),
     );
   }
 }
