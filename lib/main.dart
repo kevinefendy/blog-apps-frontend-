@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'screens/article_list_page.dart';
+import 'pages/homePage.dart';
 
 void main() {
   runApp(const MyApp());
@@ -15,7 +15,7 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'Artikel App',
       theme: ThemeData(useMaterial3: true, colorSchemeSeed: Colors.blue),
-      home: const ArticleListPage(),
+      home: const HomePage(),
     );
   }
 }
