@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import '../config/api_config.dart';
 import 'article_detail_page.dart';
+import 'addPost.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -13,26 +15,36 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   List articles = [];
   bool isLoading = true;
+  String? errorMsg;
 
   Future<void> getPosts() async {
+    setState(() {
+      isLoading = true;
+      errorMsg = null;
+    });
     try {
-      final response = await http.get(
-        Uri.parse('http://localhost:5000/api/v1/posts'),
-      );
+      final response = await http
+          .get(
+            Uri.parse('${ApiConfig.baseUrl}/posts'),
+          )
+          .timeout(const Duration(seconds: 5));
 
       if (response.statusCode == 200) {
         setState(() {
-          articles = jsonDecode(response.body)['data'];
+          articles = jsonDecode(response.body)['data'] ?? [];
           isLoading = false;
         });
       } else {
         setState(() {
           isLoading = false;
+          errorMsg = 'Server jawab ${response.statusCode}. Coba lagi ya.';
         });
       }
     } catch (e) {
       setState(() {
         isLoading = false;
+        errorMsg =
+            'HP/ emulator tidak bisa nyambung ke backend.\nCek backend jalan di port 5000.';
       });
 
       debugPrint('Error: $e');
@@ -48,14 +60,70 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(),
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
       );
     }
 
-    return RefreshIndicator(
+    return Scaffold(
+      floatingActionButton: FloatingActionButton(
+        onPressed: () async {
+          // Buka form tambah, refresh kalau berhasil simpan
+          final result = await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const AddPostPage(),
+            ),
+          );
+          if (result == true) getPosts();
+        },
+        child: const Icon(Icons.add),
+      ),
+      body: RefreshIndicator(
       onRefresh: getPosts,
-      child: ListView(
+      child: errorMsg != null
+          ? ListView(
+              padding: const EdgeInsets.all(20),
+              children: [
+                const SizedBox(height: 120),
+                const Icon(Icons.cloud_off_outlined,
+                    size: 60, color: Colors.grey),
+                const SizedBox(height: 12),
+                Center(
+                  child: Text(
+                    errorMsg!,
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Center(
+                  child: ElevatedButton.icon(
+                    onPressed: getPosts,
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Coba Lagi'),
+                  ),
+                ),
+              ],
+            )
+          : articles.isEmpty
+          ? ListView(
+              padding: const EdgeInsets.all(20),
+              children: const [
+                SizedBox(height: 120),
+                Icon(Icons.article_outlined,
+                    size: 60, color: Colors.grey),
+                SizedBox(height: 12),
+                Center(
+                  child: Text(
+                    'Belum ada artikel.\nKetuk + untuk menambah.',
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ],
+            )
+          : ListView(
         padding: const EdgeInsets.all(20),
         children: [
           const SizedBox(height: 10),
@@ -132,6 +200,7 @@ class _HomePageState extends State<HomePage> {
             },
           ),
         ],
+      ),
       ),
     );
   }
