@@ -2,8 +2,11 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../config/api_config.dart';
+import '../models/blog_models.dart';
+import '../services/api_service.dart';
 import 'article_detail_page.dart';
 import 'addPost.dart';
+import 'categoryBlog.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -14,6 +17,8 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   List articles = [];
+  List<Category> categories = [];
+  int? selectedCategoryId; // null = Semua
   bool isLoading = true;
   String? errorMsg;
 
@@ -23,11 +28,12 @@ class _HomePageState extends State<HomePage> {
       errorMsg = null;
     });
     try {
-      final response = await http
-          .get(
-            Uri.parse('${ApiConfig.baseUrl}/posts'),
-          )
-          .timeout(const Duration(seconds: 5));
+      final uri = selectedCategoryId == null
+          ? Uri.parse('${ApiConfig.baseUrl}/posts')
+          : Uri.parse(
+              '${ApiConfig.baseUrl}/posts?categoryId=$selectedCategoryId');
+      final response =
+          await http.get(uri).timeout(const Duration(seconds: 5));
 
       if (response.statusCode == 200) {
         setState(() {
@@ -54,6 +60,21 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    getPosts();
+    loadCategories();
+  }
+
+  Future<void> loadCategories() async {
+    try {
+      final cats = await ApiService.fetchCategories();
+      setState(() => categories = cats);
+    } catch (e) {
+      debugPrint('Kategori gagal dimuat: $e');
+    }
+  }
+
+  void pickCategory(int? id) {
+    setState(() => selectedCategoryId = id);
     getPosts();
   }
 
@@ -149,7 +170,57 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
 
-          const SizedBox(height: 28),
+          const SizedBox(height: 12),
+
+          // Link ke halaman kategori
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const CategoryBlogPage(),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.folder_outlined, size: 18),
+              label: const Text(
+                'Lihat Kategori',
+                style: TextStyle(fontFamily: 'Comic Relief'),
+              ),
+            ),
+          ),
+
+          // Filter chips kategori
+          SizedBox(
+            height: 40,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ChoiceChip(
+                    label: const Text('Semua'),
+                    selected: selectedCategoryId == null,
+                    onSelected: (_) => pickCategory(null),
+                  ),
+                ),
+                ...categories.map(
+                  (c) => Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ChoiceChip(
+                      label: Text(c.name),
+                      selected: selectedCategoryId == c.id,
+                      onSelected: (_) => pickCategory(c.id),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 16),
 
           // Header Recent Articles
           Row(
