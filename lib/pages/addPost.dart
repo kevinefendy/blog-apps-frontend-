@@ -1,11 +1,9 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../models/blog_models.dart';
 import '../services/api_service.dart';
 
-/// Halaman Tambah / Edit artikel.
-/// POST /api/v1/posts & PUT /api/v1/posts/:id.
-/// Form: kategori + judul + isi saja (tanpa gambar).
-/// Kalau [article] null = mode tambah, kalau diisi = mode edit.
 class AddPostPage extends StatefulWidget {
   final Map? article;
 
@@ -19,9 +17,12 @@ class _AddPostPageState extends State<AddPostPage> {
   final _formKey = GlobalKey<FormState>();
   final _titleCtrl = TextEditingController();
   final _contentCtrl = TextEditingController();
+  final _picker = ImagePicker();
 
   List<Category> _categories = [];
   int? _selectedCategoryId;
+  XFile? _pickedImage;
+  Uint8List? _previewBytes; // preview aman mobile + web
 
   bool _loadingCat = true;
   bool _saving = false;
@@ -60,7 +61,6 @@ class _AddPostPageState extends State<AddPostPage> {
       setState(() {
         _categories = cats;
         _loadingCat = false;
-        // kalau kategori lama tidak ada di list, biarkan null biar user pilih ulang
         if (_selectedCategoryId != null &&
             !cats.any((c) => c.id == _selectedCategoryId)) {
           _selectedCategoryId = null;
@@ -73,6 +73,32 @@ class _AddPostPageState extends State<AddPostPage> {
       });
     }
   }
+
+  Future<void> _pickImage() async {
+    final img = await _picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1600,
+      imageQuality: 85,
+    );
+    if (img == null) return;
+    final bytes = await img.readAsBytes();
+    setState(() {
+      _pickedImage = img;
+      _previewBytes = bytes;
+    });
+  }
+
+  void _clearImage() {
+    setState(() {
+      _pickedImage = null;
+      _previewBytes = null;
+    });
+  }
+
+  String get _oldImageUrl =>
+      (widget.article?['imageUrl']?.toString() ??
+          widget.article?['image_url']?.toString() ??
+          '');
 
   Future<void> _submit() async {
     if (_selectedCategoryId == null) {
@@ -92,12 +118,14 @@ class _AddPostPageState extends State<AddPostPage> {
           categoryId: _selectedCategoryId!,
           title: _titleCtrl.text.trim(),
           content: _contentCtrl.text.trim(),
+          image: _pickedImage, // null = gambar tidak diganti
         );
       } else {
         await ApiService.createPost(
           categoryId: _selectedCategoryId!,
           title: _titleCtrl.text.trim(),
           content: _contentCtrl.text.trim(),
+          image: _pickedImage, // null = tanpa gambar, tetap boleh
         );
       }
 
@@ -230,6 +258,60 @@ class _AddPostPageState extends State<AddPostPage> {
               ),
               const SizedBox(height: 16),
 
+              // ---------- GAMBAR (OPSIONAL) ----------
+              const Text(
+                'Gambar (opsional)',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              InkWell(
+                onTap: _saving ? null : _pickImage,
+                borderRadius: BorderRadius.circular(14),
+                child: Container(
+                  width: double.infinity,
+                  height: 170,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: Colors.grey.shade300),
+                    color: Colors.grey.shade100,
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: _buildImagePreview(),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  TextButton.icon(
+                    onPressed: _saving ? null : _pickImage,
+                    icon: const Icon(Icons.image_outlined),
+                    label: Text(_pickedImage == null
+                        ? 'Pilih dari galeri'
+                        : 'Ganti gambar'),
+                  ),
+                  if (_pickedImage != null)
+                    TextButton.icon(
+                      onPressed: _saving ? null : _clearImage,
+                      icon: const Icon(Icons.close, size: 18),
+                      label: const Text('Hapus'),
+                    ),
+                ],
+              ),
+              if (isEdit &&
+                  _pickedImage == null &&
+                  _oldImageUrl.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text(
+                    'Gambar lama tetap dipakai kalau tidak pilih yang baru.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 12),
+
               // ---------- TOMBOL SIMPAN ----------
               SizedBox(
                 width: double.infinity,
@@ -262,6 +344,44 @@ class _AddPostPageState extends State<AddPostPage> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildImagePreview() {
+    // 1. gambar baru yang baru dipilih
+    if (_previewBytes != null) {
+      return Image.memory(
+        _previewBytes!,
+        fit: BoxFit.cover,
+        width: double.infinity,
+      );
+    }
+    // 2. mode edit: tampilkan gambar lama dari server
+    if (isEdit && _oldImageUrl.isNotEmpty) {
+      return Image.network(
+        _oldImageUrl,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        errorBuilder: (_, __, ___) => _emptyImage(),
+      );
+    }
+    return _emptyImage();
+  }
+
+  Widget _emptyImage() {
+    return const Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.add_photo_alternate_outlined,
+              size: 44, color: Colors.grey),
+          SizedBox(height: 6),
+          Text(
+            'Ketuk untuk pilih gambar (boleh kosong)',
+            style: TextStyle(color: Colors.grey),
+          ),
+        ],
       ),
     );
   }

@@ -51,6 +51,55 @@ class ApiService {
     return http.get(Uri.parse('$base$path')).timeout(_timeout);
   }
 
+  static String _msg(String body, String fallback) {
+    try {
+      final decoded = jsonDecode(body) as Map<String, dynamic>;
+      if (decoded['message'] != null) return decoded['message'].toString();
+    } catch (_) {}
+    return fallback;
+  }
+
+  /// POST /categories — body JSON: { name }
+  static Future<void> createCategory(String name) async {
+    final base = await _base();
+    final res = await http
+        .post(
+          Uri.parse('$base/categories'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'name': name}),
+        )
+        .timeout(_timeout);
+
+    if (res.statusCode == 201) return;
+    throw Exception(_msg(res.body, 'Gagal menambah kategori (${res.statusCode})'));
+  }
+
+  /// PUT /categories/:id — body JSON: { name }
+  static Future<void> updateCategory({required int id, required String name}) async {
+    final base = await _base();
+    final res = await http
+        .put(
+          Uri.parse('$base/categories/$id'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'name': name}),
+        )
+        .timeout(_timeout);
+
+    if (res.statusCode == 200) return;
+    throw Exception(_msg(res.body, 'Gagal mengedit kategori (${res.statusCode})'));
+  }
+
+  /// DELETE /categories/:id
+  static Future<void> deleteCategory(int id) async {
+    final base = await _base();
+    final res = await http
+        .delete(Uri.parse('$base/categories/$id'))
+        .timeout(_timeout);
+
+    if (res.statusCode == 200) return;
+    throw Exception(_msg(res.body, 'Gagal menghapus kategori (${res.statusCode})'));
+  }
+
   static Future<List<Category>> fetchCategories() async {
     final res = await _get('/categories');
 
@@ -121,7 +170,13 @@ class ApiService {
     req.fields['content'] = content;
 
     if (image != null) {
-      req.files.add(await http.MultipartFile.fromPath('image', image.path));
+      // fromBytes (bukan fromPath) biar jalan di HP + Web.
+      final bytes = await image.readAsBytes();
+      req.files.add(http.MultipartFile.fromBytes(
+        'image',
+        bytes,
+        filename: image.name,
+      ));
     }
 
     final streamed = await req.send().timeout(const Duration(seconds: 20));
@@ -153,7 +208,13 @@ class ApiService {
     req.fields['content'] = content;
 
     if (image != null) {
-      req.files.add(await http.MultipartFile.fromPath('image', image.path));
+      // fromBytes (bukan fromPath) biar jalan di HP + Web.
+      final bytes = await image.readAsBytes();
+      req.files.add(http.MultipartFile.fromBytes(
+        'image',
+        bytes,
+        filename: image.name,
+      ));
     }
 
     final streamed = await req.send().timeout(const Duration(seconds: 20));
