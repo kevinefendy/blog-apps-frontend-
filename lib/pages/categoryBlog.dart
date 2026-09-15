@@ -3,9 +3,6 @@ import '../models/blog_models.dart';
 import '../services/api_service.dart';
 import 'homePage.dart';
 
-/// Halaman daftar kategori.
-/// GET /api/v1/categories (+ hitung jumlah artikel per kategori).
-/// Ketuk kategori → daftar artikel kategori itu (GET /posts?categoryId=).
 class CategoryBlogPage extends StatefulWidget {
   const CategoryBlogPage({super.key});
 
@@ -56,10 +53,148 @@ class _CategoryBlogPageState extends State<CategoryBlogPage> {
     }
   }
 
+  Future<void> _showForm({Category? category}) async {
+    final editId = category?.id;
+    final isEdit = editId != null;
+    final ctrl = TextEditingController(text: category?.name ?? '');
+    var saving = false;
+    String? formError;
+
+    Future<void> submit(StateSetter setDlg, BuildContext ctx) async {
+      final name = ctrl.text.trim();
+      if (name.isEmpty) {
+        setDlg(() => formError = 'Nama kategori wajib diisi');
+        return;
+      }
+      setDlg(() {
+        saving = true;
+        formError = null;
+      });
+      try {
+        if (isEdit) {
+          await ApiService.updateCategory(id: editId, name: name);
+        } else {
+          await ApiService.createCategory(name);
+        }
+        if (ctx.mounted) Navigator.pop(ctx, true);
+      } catch (e) {
+        setDlg(() {
+          saving = false;
+          formError = e.toString().replaceFirst('Exception: ', '');
+        });
+      }
+    }
+
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDlg) => AlertDialog(
+          title: Text(isEdit ? 'Edit Kategori' : 'Tambah Kategori'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: ctrl,
+                autofocus: true,
+                textCapitalization: TextCapitalization.words,
+                decoration: const InputDecoration(
+                  labelText: 'Nama kategori',
+                  hintText: 'cth: Teknologi',
+                  border: OutlineInputBorder(),
+                ),
+                onSubmitted: (_) => submit(setDlg, ctx),
+              ),
+              if (formError != null) ...[
+                const SizedBox(height: 8),
+                Text(formError!,
+                    style:
+                        const TextStyle(color: Colors.red, fontSize: 13)),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: saving ? null : () => Navigator.pop(ctx, false),
+              child: const Text('Batal'),
+            ),
+            ElevatedButton(
+              onPressed: saving ? null : () => submit(setDlg, ctx),
+              child: saving
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Text(isEdit ? 'Simpan' : 'Tambah'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (saved == true && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text(isEdit
+                ? 'Kategori berhasil diedit'
+                : 'Kategori berhasil ditambah')),
+      );
+      _load();
+    }
+  }
+
+  Future<void> _confirmDelete(Category c) async {
+    final count = _counts[c.id] ?? 0;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Hapus Kategori?'),
+        content: Text(count > 0
+            ? 'Kategori "${c.name}" dipakai $count artikel. Tetap hapus?'
+            : 'Hapus kategori "${c.name}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Hapus'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+
+    try {
+      await ApiService.deleteCategory(c.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Kategori berhasil dihapus')),
+      );
+      _load();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content:
+                Text(e.toString().replaceFirst('Exception: ', ''))),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Kategori')),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _showForm(),
+        child: const Icon(Icons.add),
+      ),
       body: RefreshIndicator(
         onRefresh: _load,
         child: _loading
@@ -132,9 +267,39 @@ class _CategoryBlogPageState extends State<CategoryBlogPage> {
                                 ),
                               ),
                               subtitle: Text('$n artikel'),
-                              trailing: const Icon(
-                                Icons.arrow_forward_ios,
-                                size: 16,
+                              trailing: PopupMenuButton<String>(
+                                onSelected: (v) {
+                                  if (v == 'edit') {
+                                    _showForm(category: c);
+                                  } else if (v == 'delete') {
+                                    _confirmDelete(c);
+                                  }
+                                },
+                                itemBuilder: (_) => const [
+                                  PopupMenuItem(
+                                    value: 'edit',
+                                    child: Row(
+                                      children: [
+                                        Icon(Icons.edit_outlined, size: 18),
+                                        SizedBox(width: 8),
+                                        Text('Edit'),
+                                      ],
+                                    ),
+                                  ),
+                                  PopupMenuItem(
+                                    value: 'delete',
+                                    child: Row(
+                                      children: [
+                                        Icon(Icons.delete_outline,
+                                            size: 18, color: Colors.red),
+                                        SizedBox(width: 8),
+                                        Text('Hapus',
+                                            style:
+                                                TextStyle(color: Colors.red)),
+                                      ],
+                                    ),
+                                  ),
+                                ],
                               ),
                               onTap: () {
                                 Navigator.push(
