@@ -342,7 +342,7 @@ class _AddPostPageState extends State<AddPostPage> {
                 ),
               ),
             ],
-          ),
+          ),  
         ),
       ),
     );

@@ -6,7 +6,6 @@ import '../models/blog_models.dart';
 import '../services/api_service.dart';
 import 'article_detail_page.dart';
 import 'addPost.dart';
-import 'categoryBlog.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -18,7 +17,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   List articles = [];
   List<Category> categories = [];
-  int? selectedCategoryId; // null = Semua
+  int? selectedCategoryId; 
   bool isLoading = true;
   String? errorMsg;
 
@@ -30,7 +29,7 @@ class _HomePageState extends State<HomePage> {
     try {
       final uri = selectedCategoryId == null
           ? Uri.parse('${ApiConfig.baseUrl}/posts')
-          : Uri.parse(
+          : Uri.parse(  
               '${ApiConfig.baseUrl}/posts?categoryId=$selectedCategoryId');
       final response =
           await http.get(uri).timeout(const Duration(seconds: 5));
@@ -172,26 +171,6 @@ class _HomePageState extends State<HomePage> {
 
           const SizedBox(height: 12),
 
-          // Link ke halaman kategori
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton.icon(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const CategoryBlogPage(),
-                  ),
-                );
-              },
-              icon: const Icon(Icons.folder_outlined, size: 18),
-              label: const Text(
-                'Lihat Kategori',
-                style: TextStyle(fontFamily: 'Comic Relief'),
-              ),
-            ),
-          ),
-
           // Filter chips kategori
           SizedBox(
             height: 40,
@@ -247,26 +226,55 @@ class _HomePageState extends State<HomePage> {
 
           const SizedBox(height: 16),
 
-          // Grid Artikel
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: articles.length,
-            gridDelegate:
-                const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              crossAxisSpacing: 14,
-              mainAxisSpacing: 18,
-              childAspectRatio: 0.72,
-            ),
-            itemBuilder: (context, index) {
-              final article = articles[index];
+          // Responsive Artikel pakai LayoutBuilder (kayak contoh kamu)
+          // Mobile (<600)  : 1 gambar gede ke bawah (list vertikal)
+          // Tablet (600-1100): 2 gambar sedang (grid 2 kolom)
+          // Desktop (>1100) : gambar gede 4 kolom
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final maxWidth = constraints.maxWidth;
 
-              return ArticleCard(
-                article: article,
+              if (maxWidth < 600) {
+                // MOBILE: 1 kolom, gambar besar full-width ke bawah
+                return ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: articles.length,
+                  itemBuilder: (context, index) {
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 18),
+                      child: ArticleMobileBigCard(
+                        article: articles[index],
+                        onArticleUpdated: getPosts,
+                      ),
+                    );
+                  },
+                );
+              }
 
-                // Beri tahu Home kalau artikel berhasil diubah
-                onArticleUpdated: getPosts,
+              // Tentukan kolom + rasio buat tablet & desktop
+              final bool isTablet = maxWidth < 1100;
+              final int crossAxisCount = isTablet ? 2 : 4;
+              final double childAspectRatio = isTablet ? 0.75 : 0.72;
+
+              return GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: articles.length,
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: crossAxisCount,
+                  crossAxisSpacing: 14,
+                  mainAxisSpacing: 18,
+                  childAspectRatio: childAspectRatio,
+                ),
+                itemBuilder: (context, index) {
+                  final article = articles[index];
+                  return ArticleCard(
+                    article: article,
+                    // Beri tahu Home kalau artikel berhasil diubah
+                    onArticleUpdated: getPosts,
+                  );
+                },
               );
             },
           ),
@@ -304,7 +312,6 @@ class ArticleCard extends StatelessWidget {
           ),
         );
 
-        // Kalau artikel berhasil diedit
         if (result == true) {
           onArticleUpdated?.call();
         }
@@ -376,3 +383,100 @@ class ArticleCard extends StatelessWidget {
     );
   }
 }
+
+// MOBILE: 1 gambar gede full-width ke bawah (list vertikal)
+class ArticleMobileBigCard extends StatelessWidget {
+  final Map article;
+  final VoidCallback? onArticleUpdated;
+
+  const ArticleMobileBigCard({
+    super.key,
+    required this.article,
+    this.onArticleUpdated,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final String title = article['title'] ?? 'Tanpa Judul';
+    final String content =
+        (article['content'] ?? '').toString().replaceAll(RegExp(r'\s+'), ' ');
+    final dynamic image = article['imageUrl'] ?? article['image_url'];
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(20),
+      onTap: () async {
+        final result = await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ArticlDetailPage(article: article),
+          ),
+        );
+        if (result == true) onArticleUpdated?.call();
+      },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Gambar gede 16:9 full-width
+          ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: AspectRatio(
+              aspectRatio: 16 / 9,
+              child: image != null && image.toString().isNotEmpty
+                  ? Image.network(
+                      image.toString(),
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                      errorBuilder: (c, e, s) => Container(
+                        color: Colors.grey.shade200,
+                        child: const Center(
+                          child: Icon(Icons.image_outlined,
+                              size: 55, color: Colors.grey),
+                        ),
+                      ),
+                    )
+                  : Container(
+                      color: Colors.grey.shade200,
+                      child: const Center(
+                        child: Icon(Icons.image_outlined,
+                            size: 55, color: Colors.grey),
+                      ),
+                    ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6),
+            child: Text(
+              title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontFamily: 'Comic Relief',
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                height: 1.3,
+              ),
+            ),
+          ),
+          if (content.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+              child: Text(
+                content.length <= 120
+                    ? content
+                    : '${content.substring(0, 120)}...',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey.shade600,
+                  height: 1.4,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+} 
+

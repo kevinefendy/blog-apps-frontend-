@@ -187,6 +187,52 @@ class _CategoryBlogPageState extends State<CategoryBlogPage> {
     }
   }
 
+  void _openCategory(Category c) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CategoryPostsPage(
+          categoryId: c.id,
+          categoryName: c.name,
+        ),
+      ),
+    );
+  }
+
+  Widget _categoryMenu(Category c) {
+    return PopupMenuButton<String>(
+      onSelected: (v) {
+        if (v == 'edit') {
+          _showForm(category: c);
+        } else if (v == 'delete') {
+          _confirmDelete(c);
+        }
+      },
+      itemBuilder: (_) => const [
+        PopupMenuItem(
+          value: 'edit',
+          child: Row(
+            children: [
+              Icon(Icons.edit_outlined, size: 18),
+              SizedBox(width: 8),
+              Text('Edit'),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'delete',
+          child: Row(
+            children: [
+              Icon(Icons.delete_outline, size: 18, color: Colors.red),
+              SizedBox(width: 8),
+              Text('Hapus', style: TextStyle(color: Colors.red)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -231,89 +277,130 @@ class _CategoryBlogPageState extends State<CategoryBlogPage> {
                           Center(child: Text('Belum ada kategori.')),
                         ],
                       )
-                    : ListView.separated(
-                        padding: const EdgeInsets.all(20),
-                        itemCount: _categories.length,
-                        separatorBuilder: (_, __) =>
-                            const SizedBox(height: 12),
-                        itemBuilder: (context, i) {
-                          final c = _categories[i];
-                          final n = _counts[c.id] ?? 0;
-                          return Card(
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: ListTile(
-                              contentPadding:
-                                  const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 8,
-                              ),
-                              leading: CircleAvatar(
-                                child: Text(
-                                  c.name.isNotEmpty
-                                      ? c.name[0].toUpperCase()
-                                      : '?',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
+                    : LayoutBuilder(
+                        builder: (context, constraints) {
+                          final maxWidth = constraints.maxWidth;
+
+                          // MOBILE (<600): 1 kolom list ke bawah kayak semula
+                          if (maxWidth < 600) {
+                            return ListView.separated(
+                              padding: const EdgeInsets.all(20),
+                              itemCount: _categories.length,
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(height: 12),
+                              itemBuilder: (context, i) {
+                                final c = _categories[i];
+                                final n = _counts[c.id] ?? 0;
+                                return Card(
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
                                   ),
-                                ),
-                              ),
-                              title: Text(
-                                c.name,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
-                              ),
-                              subtitle: Text('$n artikel'),
-                              trailing: PopupMenuButton<String>(
-                                onSelected: (v) {
-                                  if (v == 'edit') {
-                                    _showForm(category: c);
-                                  } else if (v == 'delete') {
-                                    _confirmDelete(c);
-                                  }
-                                },
-                                itemBuilder: (_) => const [
-                                  PopupMenuItem(
-                                    value: 'edit',
-                                    child: Row(
-                                      children: [
-                                        Icon(Icons.edit_outlined, size: 18),
-                                        SizedBox(width: 8),
-                                        Text('Edit'),
-                                      ],
+                                  child: ListTile(
+                                    contentPadding:
+                                        const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 8,
                                     ),
-                                  ),
-                                  PopupMenuItem(
-                                    value: 'delete',
-                                    child: Row(
-                                      children: [
-                                        Icon(Icons.delete_outline,
-                                            size: 18, color: Colors.red),
-                                        SizedBox(width: 8),
-                                        Text('Hapus',
-                                            style:
-                                                TextStyle(color: Colors.red)),
-                                      ],
+                                    leading: CircleAvatar(
+                                      child: Text(
+                                        c.name.isNotEmpty
+                                            ? c.name[0].toUpperCase()
+                                            : '?',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
                                     ),
-                                  ),
-                                ],
-                              ),
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) =>
-                                        CategoryPostsPage(
-                                      categoryId: c.id,
-                                      categoryName: c.name,
+                                    title: Text(
+                                      c.name,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                      ),
                                     ),
+                                    subtitle: Text('$n artikel'),
+                                    trailing: _categoryMenu(c),
+                                    onTap: () => _openCategory(c),
                                   ),
                                 );
                               },
+                            );
+                          }
+
+                          // TABLET (600-1100): grid 2 kolom sedang
+                          // DESKTOP (>1100): grid 4 kolom gede
+                          final bool isTablet = maxWidth < 1100;
+                          final int crossAxisCount = isTablet ? 2 : 4;
+
+                          return GridView.builder(
+                            padding: const EdgeInsets.all(20),
+                            itemCount: _categories.length,
+                            gridDelegate:
+                                SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: crossAxisCount,
+                              crossAxisSpacing: 14,
+                              mainAxisSpacing: 14,
+                              childAspectRatio: isTablet ? 1.4 : 1.2,
                             ),
+                            itemBuilder: (context, i) {
+                              final c = _categories[i];
+                              final n = _counts[c.id] ?? 0;
+                              return Card(
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(16),
+                                  onTap: () => _openCategory(c),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(16),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            CircleAvatar(
+                                              radius: 24,
+                                              child: Text(
+                                                c.name.isNotEmpty
+                                                    ? c.name[0].toUpperCase()
+                                                    : '?',
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 20,
+                                                ),
+                                              ),
+                                            ),
+                                            _categoryMenu(c),
+                                          ],
+                                        ),
+                                        const Spacer(),
+                                        Text(
+                                          c.name,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 18,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          '$n artikel',
+                                          style: TextStyle(
+                                            color: Colors.grey.shade600,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
                           );
                         },
                       ),
@@ -322,8 +409,7 @@ class _CategoryBlogPageState extends State<CategoryBlogPage> {
   }
 }
 
-/// Daftar artikel dalam satu kategori.
-/// GET /api/v1/posts?categoryId=:id
+
 class CategoryPostsPage extends StatefulWidget {
   final int categoryId;
   final String categoryName;
@@ -425,20 +511,44 @@ class _CategoryPostsPageState extends State<CategoryPostsPage> {
                           ),
                         ],
                       )
-                    : GridView.builder(
-                        padding: const EdgeInsets.all(20),
-                        itemCount: _articles.length,
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          crossAxisSpacing: 14,
-                          mainAxisSpacing: 18,
-                          childAspectRatio: 0.72,
-                        ),
-                        itemBuilder: (context, i) => ArticleCard(
-                          article: _articles[i],
-                          onArticleUpdated: _load,
-                        ),
+                    : LayoutBuilder(
+                        builder: (context, constraints) {
+                          final maxWidth = constraints.maxWidth;
+
+                          // MOBILE (<600): 1 gambar gede ke bawah
+                          if (maxWidth < 600) {
+                            return ListView.builder(
+                              padding: const EdgeInsets.all(20),
+                              itemCount: _articles.length,
+                              itemBuilder: (context, i) => Padding(
+                                padding:
+                                    const EdgeInsets.only(bottom: 18),
+                                child: ArticleMobileBigCard(
+                                  article: _articles[i],
+                                  onArticleUpdated: _load,
+                                ),
+                              ),
+                            );
+                          }
+
+                          // TABLET: 2 kolom, DESKTOP: 4 kolom
+                          final bool isTablet = maxWidth < 1100;
+                          return GridView.builder(
+                            padding: const EdgeInsets.all(20),
+                            itemCount: _articles.length,
+                            gridDelegate:
+                                SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: isTablet ? 2 : 4,
+                              crossAxisSpacing: 14,
+                              mainAxisSpacing: 18,
+                              childAspectRatio: isTablet ? 0.75 : 0.72,
+                            ),
+                            itemBuilder: (context, i) => ArticleCard(
+                              article: _articles[i],
+                              onArticleUpdated: _load,
+                            ),
+                          );
+                        },
                       ),
       ),
     );

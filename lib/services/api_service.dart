@@ -230,7 +230,7 @@ class ApiService {
     throw Exception(msg);
   }
 
-  /// DELETE /posts/:id (soft delete di backend).
+  /// DELETE /posts/:id (hard delete di backend).
   static Future<void> deletePost(int id) async {
     final base = await _base();
     final res = await http

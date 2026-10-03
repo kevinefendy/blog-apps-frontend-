@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import 'addPost.dart';
 
-/// Detail artikel. Nama kelas sengaja mengikuti pemakaian di homePage.
-/// Menampilkan detail + tombol edit & hapus (PUT & DELETE).
+
 class ArticlDetailPage extends StatefulWidget {
   final Map article;
 
@@ -30,7 +29,6 @@ class _ArticlDetailPageState extends State<ArticlDetailPage> {
         builder: (context) => AddPostPage(article: _article),
       ),
     );
-    // true = berhasil edit di halaman form → tutup detail + refresh Home
     if (result == true && mounted) Navigator.pop(context, true);
   }
 
