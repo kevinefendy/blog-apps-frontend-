@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
@@ -59,45 +60,74 @@ class ApiService {
     return fallback;
   }
 
+  static String _connErr(Object e) {
+    if (e is http.ClientException) {
+      return 'Tidak dapat terhubung ke server (${ApiConfig.baseUrl}). '
+          'Pastikan backend jalan di port 5000.';
+    }
+    if (e is TimeoutException) {
+      return 'Server tidak merespons (timeout). Coba lagi.';
+    }
+    return e.toString().replaceFirst('Exception: ', '');
+  }
+
   /// POST /categories — body JSON: { name }
   static Future<void> createCategory(String name) async {
-    final base = await _base();
-    final res = await http
-        .post(
-          Uri.parse('$base/categories'),
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({'name': name}),
-        )
-        .timeout(_timeout);
+    try {
+      final base = await _base();
+      final res = await http
+          .post(
+            Uri.parse('$base/categories'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'name': name.trim()}),
+          )
+          .timeout(const Duration(seconds: 15));
 
-    if (res.statusCode == 201) return;
-    throw Exception(_msg(res.body, 'Gagal menambah kategori (${res.statusCode})'));
+      if (res.statusCode == 201) return;
+      throw Exception(_msg(res.body, 'Gagal menambah kategori (${res.statusCode})'));
+    } on http.ClientException catch (e) {
+      throw Exception(_connErr(e));
+    } on TimeoutException catch (e) {
+      throw Exception(_connErr(e));
+    }
   }
 
   /// PUT /categories/:id — body JSON: { name }
   static Future<void> updateCategory({required int id, required String name}) async {
-    final base = await _base();
-    final res = await http
-        .put(
-          Uri.parse('$base/categories/$id'),
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({'name': name}),
-        )
-        .timeout(_timeout);
+    try {
+      final base = await _base();
+      final res = await http
+          .put(
+            Uri.parse('$base/categories/$id'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'name': name.trim()}),
+          )
+          .timeout(const Duration(seconds: 15));
 
-    if (res.statusCode == 200) return;
-    throw Exception(_msg(res.body, 'Gagal mengedit kategori (${res.statusCode})'));
+      if (res.statusCode == 200) return;
+      throw Exception(_msg(res.body, 'Gagal mengedit kategori (${res.statusCode})'));
+    } on http.ClientException catch (e) {
+      throw Exception(_connErr(e));
+    } on TimeoutException catch (e) {
+      throw Exception(_connErr(e));
+    }
   }
 
   /// DELETE /categories/:id
   static Future<void> deleteCategory(int id) async {
-    final base = await _base();
-    final res = await http
-        .delete(Uri.parse('$base/categories/$id'))
-        .timeout(_timeout);
+    try {
+      final base = await _base();
+      final res = await http
+          .delete(Uri.parse('$base/categories/$id'))
+          .timeout(const Duration(seconds: 15));
 
-    if (res.statusCode == 200) return;
-    throw Exception(_msg(res.body, 'Gagal menghapus kategori (${res.statusCode})'));
+      if (res.statusCode == 200) return;
+      throw Exception(_msg(res.body, 'Gagal menghapus kategori (${res.statusCode})'));
+    } on http.ClientException catch (e) {
+      throw Exception(_connErr(e));
+    } on TimeoutException catch (e) {
+      throw Exception(_connErr(e));
+    }
   }
 
   static Future<List<Category>> fetchCategories() async {
